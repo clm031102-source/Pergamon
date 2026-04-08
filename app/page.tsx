@@ -1,8 +1,24 @@
+'use client'
+
 import Link from 'next/link'
 import { BookOpen, ArrowRight, Heart } from 'lucide-react'
 import Button from '@/components/ui/Button'
+import { useBooks } from '@/lib/useBooks'
 
 export default function LandingPage() {
+  const { allBooks, stats } = useBooks()
+
+  const topPreferences = Object.entries(
+    allBooks.reduce((acc, book) => {
+      book.tags.forEach((tag) => {
+        acc[tag] = (acc[tag] || 0) + 1
+      })
+      return acc
+    }, {} as Record<string, number>),
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800">
       <header className="border-b border-stone-200 bg-white/90">
@@ -24,8 +40,8 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="md:col-span-2 rounded-2xl border border-stone-200 bg-white p-6">
-            <p className="text-sm text-stone-500">为什么是这个版本</p>
-            <p className="mt-2 text-stone-700">这次升级专注个人长期使用体验：不是展示页，而是可以持续沉淀阅读数据的工具。</p>
+            <p className="text-sm text-stone-500">当前阅读快照</p>
+            <p className="mt-2 text-stone-700">共 {stats.total} 本，已读 {stats.byStatus['已读']} 本，在读 {stats.byStatus['在读']} 本。</p>
           </div>
         </section>
 
@@ -40,11 +56,12 @@ export default function LandingPage() {
             </ul>
           </article>
           <article className="rounded-2xl bg-white border border-stone-200 p-8">
-            <h2 className="text-xl font-semibold mb-4">我的阅读偏好</h2>
+            <h2 className="text-xl font-semibold mb-4">我的阅读偏好（实时）</h2>
             <ul className="space-y-3 text-sm text-stone-600">
-              <li className="flex gap-2"><Heart className="h-4 w-4 mt-0.5 text-rose-500" />社会科学与叙事非虚构</li>
-              <li className="flex gap-2"><Heart className="h-4 w-4 mt-0.5 text-rose-500" />当代中文小说与散文</li>
-              <li className="flex gap-2"><Heart className="h-4 w-4 mt-0.5 text-rose-500" />产品、设计、创作方法论</li>
+              {topPreferences.length === 0 && <li>先去新增几本书，偏好会自动生成。</li>}
+              {topPreferences.map(([tag, count]) => (
+                <li key={tag} className="flex gap-2"><Heart className="h-4 w-4 mt-0.5 text-rose-500" />{tag}（{count} 本）</li>
+              ))}
             </ul>
           </article>
         </section>
