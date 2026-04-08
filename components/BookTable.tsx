@@ -7,15 +7,11 @@ import {
   getSortedRowModel,
   ColumnDef,
   flexRender,
-  SortingState,
 } from '@tanstack/react-table'
-import { ExternalLink, Search, Filter, X } from 'lucide-react'
+import { ExternalLink, Search, Filter, X, Star } from 'lucide-react'
 import { Book } from '@/types/book'
 import { useBooks } from '@/lib/useBooks'
 
-/**
- * BookTable component for displaying and filtering books
- */
 export default function BookTable() {
   const {
     books,
@@ -24,39 +20,45 @@ export default function BookTable() {
     filters,
     uniqueGenres,
     uniqueLanguages,
+    uniqueStatuses,
     updateSearch,
     updateGenre,
     updateLanguage,
+    updateStatus,
     clearFilters,
     totalBooks,
     filteredCount,
+    featuredCount,
   } = useBooks()
 
   const columns = useMemo<ColumnDef<Book>[]>(
     () => [
       {
-        accessorKey: 'Title',
-        header: 'Title',
+        accessorKey: 'title',
+        header: '书名',
         cell: ({ row }) => (
-          <div className="font-medium text-gray-900">{row.original.Title}</div>
+          <div>
+            <div className="font-medium text-gray-900">{row.original.title}</div>
+            {row.original.note && (
+              <div className="text-xs text-gray-500 mt-1 line-clamp-1">{row.original.note}</div>
+            )}
+          </div>
         ),
       },
       {
-        accessorKey: 'Author',
-        header: 'Author',
-        cell: ({ row }) => (
-          <div className="text-gray-600">{row.original.Author}</div>
-        ),
+        accessorKey: 'author',
+        header: '作者',
+        cell: ({ row }) => <div className="text-gray-700">{row.original.author}</div>,
       },
       {
-        accessorKey: 'Tags',
-        header: 'Genres',
+        accessorKey: 'tags',
+        header: '标签',
         cell: ({ row }) => (
           <div className="flex flex-wrap gap-1">
-            {row.original.Tags.map((tag, index) => (
+            {row.original.tags.map((tag, index) => (
               <span
                 key={index}
-                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700"
               >
                 {tag}
               </span>
@@ -65,18 +67,23 @@ export default function BookTable() {
         ),
       },
       {
-        accessorKey: 'Language',
-        header: 'Language',
+        accessorKey: 'status',
+        header: '阅读状态',
+        cell: ({ row }) => <div className="text-gray-600">{row.original.status || '未标注'}</div>,
+      },
+      {
+        accessorKey: 'rating',
+        header: '评分',
         cell: ({ row }) => (
-          <div className="text-gray-600">{row.original.Language}</div>
+          <div className="text-gray-600">{row.original.rating ? `${row.original.rating} / 5` : '-'}</div>
         ),
       },
       {
-        accessorKey: 'Goodreads',
-        header: 'Link',
+        accessorKey: 'goodreads',
+        header: '外部链接',
         cell: ({ row }) => (
           <a
-            href={row.original.Goodreads}
+            href={row.original.goodreads}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
@@ -100,7 +107,7 @@ export default function BookTable() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
       </div>
     )
   }
@@ -108,9 +115,7 @@ export default function BookTable() {
   if (error) {
     return (
       <div className="text-center py-12">
-        <div className="text-red-600 text-lg font-semibold">
-          Error loading books
-        </div>
+        <div className="text-red-600 text-lg font-semibold">书架加载失败</div>
         <div className="text-gray-600 mt-2">{error}</div>
       </div>
     )
@@ -118,82 +123,88 @@ export default function BookTable() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-      {/* Header */}
-      <div className="text-center">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-          Your Library
-        </h1>
-        <p className="text-gray-600 text-sm sm:text-base">
-          Showing {filteredCount} of {totalBooks} books
-        </p>
+      <div className="grid md:grid-cols-3 gap-4">
+        <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <p className="text-sm text-gray-500">当前可见</p>
+          <p className="text-2xl font-semibold text-gray-900">{filteredCount}</p>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <p className="text-sm text-gray-500">总藏书</p>
+          <p className="text-2xl font-semibold text-gray-900">{totalBooks}</p>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-500">精选标记</p>
+            <p className="text-2xl font-semibold text-gray-900">{featuredCount}</p>
+          </div>
+          <Star className="h-5 w-5 text-amber-500" />
+        </div>
       </div>
 
-      {/* Filters */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
-        <div className="space-y-4 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-4 sm:items-center">
-          {/* Search */}
-          <div className="flex-1 min-w-0 sm:min-w-64">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search by title or author..."
-                value={filters.search}
-                onChange={(e) => updateSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-              />
-            </div>
+        <div className="grid gap-3 md:grid-cols-4">
+          <div className="md:col-span-2 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="按书名、作者或标签搜索"
+              value={filters.search}
+              onChange={(e) => updateSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
 
-          {/* Genre and Language filters in a row on mobile */}
-          <div className="flex gap-2 sm:gap-4">
-            {/* Genre Filter */}
-            <div className="flex-1 sm:min-w-48">
-              <select
-                value={filters.genre}
-                onChange={(e) => updateGenre(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-              >
-                <option value="">All Genres</option>
-                {uniqueGenres.map((genre) => (
-                  <option key={genre} value={genre}>
-                    {genre}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <select
+            value={filters.genre}
+            onChange={(e) => updateGenre(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">全部标签</option>
+            {uniqueGenres.map((genre) => (
+              <option key={genre} value={genre}>
+                {genre}
+              </option>
+            ))}
+          </select>
 
-            {/* Language Filter */}
-            <div className="flex-1 sm:min-w-48">
-              <select
-                value={filters.language}
-                onChange={(e) => updateLanguage(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-              >
-                <option value="">All Languages</option>
-                {uniqueLanguages.map((language) => (
-                  <option key={language} value={language}>
-                    {language}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <select
+            value={filters.language}
+            onChange={(e) => updateLanguage(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">全部语言</option>
+            {uniqueLanguages.map((language) => (
+              <option key={language} value={language}>
+                {language}
+              </option>
+            ))}
+          </select>
 
-          {/* Clear Filters */}
-          {(filters.search || filters.genre || filters.language) && (
+          <select
+            value={filters.status}
+            onChange={(e) => updateStatus(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">全部状态</option>
+            {uniqueStatuses.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+
+          {(filters.search || filters.genre || filters.language || filters.status) && (
             <button
               onClick={clearFilters}
-              className="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               <X className="w-4 h-4 mr-1" />
-              Clear Filters
+              清空筛选
             </button>
           )}
         </div>
       </div>
 
-      {/* Desktop Table */}
       <div className="hidden lg:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -207,14 +218,8 @@ export default function BookTable() {
                       onClick={header.column.getToggleSortingHandler()}
                     >
                       <div className="flex items-center space-x-1">
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                        {{
-                          asc: ' 🔼',
-                          desc: ' 🔽',
-                        }[header.column.getIsSorted() as string] ?? null}
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {{ asc: ' 🔼', desc: ' 🔽' }[header.column.getIsSorted() as string] ?? null}
                       </div>
                     </th>
                   ))}
@@ -225,11 +230,8 @@ export default function BookTable() {
               {table.getRowModel().rows.map((row) => (
                 <tr key={row.id} className="hover:bg-gray-50">
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
+                    <td key={cell.id} className="px-6 py-4 align-top">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
                 </tr>
@@ -239,49 +241,37 @@ export default function BookTable() {
         </div>
       </div>
 
-      {/* Mobile Cards */}
       <div className="lg:hidden space-y-4">
         {books.map((book, index) => (
-          <div
-            key={index}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
-          >
+          <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="space-y-3">
-              {/* Title and Author */}
               <div>
-                <h3 className="font-semibold text-gray-900 text-lg leading-tight">
-                  {book.Title}
-                </h3>
-                <p className="text-gray-600 text-sm mt-1">by {book.Author}</p>
+                <h3 className="font-semibold text-gray-900 text-lg leading-tight">{book.title}</h3>
+                <p className="text-gray-600 text-sm mt-1">{book.author}</p>
+                {book.note && <p className="text-sm text-gray-500 mt-2">{book.note}</p>}
               </div>
 
-              {/* Genres */}
-              <div>
-                <div className="flex flex-wrap gap-1">
-                  {book.Tags.map((tag, tagIndex) => (
-                    <span
-                      key={tagIndex}
-                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+              <div className="flex flex-wrap gap-1">
+                {book.tags.map((tag, tagIndex) => (
+                  <span
+                    key={tagIndex}
+                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700"
+                  >
+                    {tag}
+                  </span>
+                ))}
               </div>
 
-              {/* Language and Link */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">
-                  Language: {book.Language}
-                </span>
+              <div className="flex items-center justify-between text-sm text-gray-600">
+                <span>{book.status || '未标注'} · {book.language}</span>
                 <a
-                  href={book.Goodreads}
+                  href={book.goodreads}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
+                  className="inline-flex items-center text-blue-600 hover:text-blue-800"
                 >
                   <ExternalLink className="w-4 h-4 mr-1" />
-                  Goodreads
+                  链接
                 </a>
               </div>
             </div>
@@ -289,16 +279,11 @@ export default function BookTable() {
         ))}
       </div>
 
-      {/* No results */}
       {filteredCount === 0 && (
         <div className="text-center py-12">
           <Filter className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">
-            No books found
-          </h3>
-          <p className="mt-1 text-sm text-gray-500">
-            Try adjusting your search or filters
-          </p>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">没有匹配结果</h3>
+          <p className="mt-1 text-sm text-gray-500">试试放宽关键词或清空筛选条件</p>
         </div>
       )}
     </div>

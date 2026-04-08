@@ -5,17 +5,11 @@ import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
 
 interface NavigationProps {
-  /** Current active page */
   currentPage: 'home' | 'library' | 'statistics' | 'upload'
-  /** Optional title to display */
   title?: string
-  /** Optional subtitle to display */
   subtitle?: string
 }
 
-/**
- * Reusable navigation component for the app with mobile responsiveness
- */
 export default function Navigation({
   currentPage,
   title,
@@ -23,19 +17,13 @@ export default function Navigation({
 }: NavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  /**
-   * Navigation links configuration
-   */
   const navLinks = [
-    { href: '/', label: 'Home', page: 'home' as const },
-    { href: '/demo', label: 'Library', page: 'library' as const },
-    { href: '/upload', label: 'Upload', page: 'upload' as const },
-    { href: '/stats', label: 'Statistics', page: 'statistics' as const },
+    { href: '/', label: '首页', page: 'home' as const },
+    { href: '/demo', label: '我的书架', page: 'library' as const },
+    { href: '/stats', label: '阅读统计', page: 'statistics' as const },
+    { href: '/upload', label: '上传入口', page: 'upload' as const },
   ]
 
-  /**
-   * Get link classes based on current page
-   */
   const getLinkClasses = (page: string, isMobile = false) => {
     const baseClasses = isMobile
       ? 'block px-3 py-2 text-base font-medium rounded-md'
@@ -60,14 +48,13 @@ export default function Navigation({
         <div className="flex items-center justify-between py-4">
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
-              {title || 'Pergamon Bookshelf'}
+              {title || '纸间漫游'}
             </h1>
             {subtitle && (
               <p className="text-sm text-gray-600 truncate">{subtitle}</p>
             )}
           </div>
 
-          {/* Desktop Navigation */}
           <nav className="hidden md:flex md:space-x-4">
             {navLinks.map((link) => (
               <Link
@@ -80,14 +67,13 @@ export default function Navigation({
             ))}
           </nav>
 
-          {/* Mobile menu button */}
           <div className="md:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
               aria-expanded="false"
             >
-              <span className="sr-only">Open main menu</span>
+              <span className="sr-only">打开导航菜单</span>
               {mobileMenuOpen ? (
                 <X className="block h-6 w-6" aria-hidden="true" />
               ) : (
@@ -97,7 +83,6 @@ export default function Navigation({
           </div>
         </div>
 
-        {/* Mobile Navigation Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200">

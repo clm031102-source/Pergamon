@@ -3,10 +3,30 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Book, BookFilter } from '@/types/book'
 
-/**
- * Custom hook for fetching and filtering book data
- * @returns Object containing books, loading state, error, and filter functions
- */
+type RawBook = Record<string, unknown>
+
+const normalizeBook = (raw: RawBook): Book => {
+  const tags = (raw.tags ?? raw.Tags) as string[] | undefined
+
+  return {
+    title: String(raw.title ?? raw.Title ?? ''),
+    author: String(raw.author ?? raw.Author ?? ''),
+    language: String(raw.language ?? raw.Language ?? ''),
+    goodreads: String(raw.goodreads ?? raw.Goodreads ?? ''),
+    tags: Array.isArray(tags) ? tags.map(String) : [],
+    rating:
+      typeof raw.rating === 'number' && Number.isFinite(raw.rating)
+        ? raw.rating
+        : undefined,
+    note: typeof raw.note === 'string' ? raw.note : undefined,
+    featured: Boolean(raw.featured),
+    status:
+      raw.status === '想读' || raw.status === '在读' || raw.status === '已读'
+        ? raw.status
+        : undefined,
+  }
+}
+
 export function useBooks() {
   const [books, setBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(true)
@@ -15,21 +35,19 @@ export function useBooks() {
     search: '',
     genre: '',
     language: '',
+    status: '',
   })
 
-  // Fetch books from the JSON file
   useEffect(() => {
     const fetchBooks = async () => {
       try {
         setLoading(true)
         const response = await fetch('/user_bookshelf.json')
-        if (!response.ok) {
-          throw new Error('Failed to fetch books')
-        }
-        const data: Book[] = await response.json()
-        setBooks(data)
+        if (!response.ok) throw new Error('加载书架数据失败')
+        const data: RawBook[] = await response.json()
+        setBooks(data.map(normalizeBook).filter((book) => book.title))
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred')
+        setError(err instanceof Error ? err.message : '发生未知错误')
       } finally {
         setLoading(false)
       }
@@ -38,71 +56,57 @@ export function useBooks() {
     fetchBooks()
   }, [])
 
-  // Get unique genres from all books
   const uniqueGenres = useMemo(() => {
     const genres = new Set<string>()
-    books.forEach((book) => {
-      book.Tags.forEach((tag) => genres.add(tag))
-    })
-    return Array.from(genres).sort()
+    books.forEach((book) => book.tags.forEach((tag) => genres.add(tag)))
+    return Array.from(genres).sort((a, b) => a.localeCompare(b, 'zh-CN'))
   }, [books])
 
-  // Get unique languages from all books
   const uniqueLanguages = useMemo(() => {
     const languages = new Set<string>()
-    books.forEach((book) => {
-      languages.add(book.Language)
-    })
-    return Array.from(languages).sort()
+    books.forEach((book) => languages.add(book.language))
+    return Array.from(languages).sort((a, b) => a.localeCompare(b, 'zh-CN'))
   }, [books])
 
-  // Filter books based on current filters
+  const uniqueStatuses = useMemo(() => {
+    const statuses = new Set<string>()
+    books.forEach((book) => {
+      if (book.status) statuses.add(book.status)
+    })
+    return Array.from(statuses)
+  }, [books])
+
   const filteredBooks = useMemo(() => {
     return books.filter((book) => {
-      // Search filter (title and author)
       if (filters.search) {
         const searchTerm = filters.search.toLowerCase()
-        const titleMatch = book.Title.toLowerCase().includes(searchTerm)
-        const authorMatch = book.Author.toLowerCase().includes(searchTerm)
-        if (!titleMatch && !authorMatch) return false
+        const titleMatch = book.title.toLowerCase().includes(searchTerm)
+        const authorMatch = book.author.toLowerCase().includes(searchTerm)
+        const tagMatch = book.tags.some((tag) =>
+          tag.toLowerCase().includes(searchTerm),
+        )
+        if (!titleMatch && !authorMatch && !tagMatch) return false
       }
 
-      // Genre filter
-      if (filters.genre && !book.Tags.includes(filters.genre)) {
-        return false
-      }
-
-      // Language filter
-      if (filters.language && book.Language !== filters.language) {
-        return false
-      }
+      if (filters.genre && !book.tags.includes(filters.genre)) return false
+      if (filters.language && book.language !== filters.language) return false
+      if (filters.status && book.status !== filters.status) return false
 
       return true
     })
   }, [books, filters])
 
-  // Update search filter
-  const updateSearch = (search: string) => {
+  const updateSearch = (search: string) =>
     setFilters((prev: BookFilter) => ({ ...prev, search }))
-  }
-
-  // Update genre filter
-  const updateGenre = (genre: string) => {
+  const updateGenre = (genre: string) =>
     setFilters((prev: BookFilter) => ({ ...prev, genre }))
-  }
-
-  // Update language filter
-  const updateLanguage = (language: string) => {
+  const updateLanguage = (language: string) =>
     setFilters((prev: BookFilter) => ({ ...prev, language }))
-  }
+  const updateStatus = (status: string) =>
+    setFilters((prev: BookFilter) => ({ ...prev, status }))
 
-  // Clear all filters
   const clearFilters = () => {
-    setFilters({
-      search: '',
-      genre: '',
-      language: '',
-    })
+    setFilters({ search: '', genre: '', language: '', status: '' })
   }
 
   return {
@@ -112,11 +116,14 @@ export function useBooks() {
     filters,
     uniqueGenres,
     uniqueLanguages,
+    uniqueStatuses,
     updateSearch,
     updateGenre,
     updateLanguage,
+    updateStatus,
     clearFilters,
     totalBooks: books.length,
     filteredCount: filteredBooks.length,
+    featuredCount: books.filter((book) => book.featured).length,
   }
 }

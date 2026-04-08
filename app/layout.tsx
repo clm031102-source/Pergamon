@@ -1,12 +1,10 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
-
 export const metadata: Metadata = {
-  title: 'Pergamon Bookshelf',
-  description: 'A beautiful bookshelf app to explore your reading collection',
+  title: '纸间漫游｜我的私人书架',
+  description:
+    '一个由静态 JSON 驱动的中文个人书架，记录我正在读、想读与反复回看的好书。',
 }
 
 export default function RootLayout({
@@ -15,8 +13,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="zh-CN">
+      <body className="antialiased bg-stone-50 text-stone-900">{children}</body>
     </html>
   )
 }
