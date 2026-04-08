@@ -1,16 +1,23 @@
 'use client'
 
-import { useMemo } from 'react'
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  ColumnDef,
-  flexRender,
-} from '@tanstack/react-table'
-import { ExternalLink, Search, Filter, X, Star } from 'lucide-react'
-import { Book } from '@/types/book'
-import { useBooks } from '@/lib/useBooks'
+import { useMemo, useState } from 'react'
+import { Search, X, Upload, Download, FolderArchive } from 'lucide-react'
+import { mapBookToForm, useBooks } from '@/lib/useBooks'
+import { Book, ImportSummary } from '@/types/book'
+import BookModal from '@/components/BookModal'
+import BookForm from '@/components/BookForm'
+import Button from '@/components/ui/Button'
+
+const sortOptions = [
+  { value: 'recentAdded', label: '最近添加' },
+  { value: 'recentFinished', label: '最近读完' },
+  { value: 'ratingDesc', label: '评分最高' },
+  { value: 'titleAsc', label: '标题 A-Z' },
+  { value: 'authorAsc', label: '作者 A-Z' },
+  { value: 'publishYearDesc', label: '出版年份' },
+] as const
+
+const importModes: ImportSummary['mode'][] = ['合并', '跳过重复', '覆盖']
 
 export default function BookTable() {
   const {
@@ -18,274 +25,201 @@ export default function BookTable() {
     loading,
     error,
     filters,
-    uniqueGenres,
+    sortBy,
+    uniqueCategories,
     uniqueLanguages,
-    uniqueStatuses,
-    updateSearch,
-    updateGenre,
-    updateLanguage,
-    updateStatus,
+    uniqueTags,
+    setSortBy,
+    setFilters,
     clearFilters,
     totalBooks,
     filteredCount,
-    featuredCount,
+    favoriteCount,
+    updateBook,
+    deleteBook,
+    exportJson,
+    exportCsv,
+    importBooks,
   } = useBooks()
 
-  const columns = useMemo<ColumnDef<Book>[]>(
-    () => [
-      {
-        accessorKey: 'title',
-        header: '书名',
-        cell: ({ row }) => (
-          <div>
-            <div className="font-medium text-gray-900">{row.original.title}</div>
-            {row.original.note && (
-              <div className="text-xs text-gray-500 mt-1 line-clamp-1">{row.original.note}</div>
-            )}
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null)
+  const [editingBook, setEditingBook] = useState<Book | null>(null)
+  const [feedback, setFeedback] = useState('')
+  const [importMode, setImportMode] = useState<ImportSummary['mode']>('合并')
+
+  const handleExport = (type: 'json' | 'csv') => {
+    const content = type === 'json' ? exportJson() : exportCsv()
+    const blob = new Blob([content], { type: type === 'json' ? 'application/json' : 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `书架备份-${new Date().toISOString().slice(0, 10)}.${type}`
+    a.click()
+    URL.revokeObjectURL(url)
+    setFeedback(type === 'json' ? 'JSON 导出成功。' : 'CSV 导出成功。')
+  }
+
+  const handleImportFile = async (file?: File) => {
+    if (!file) return
+    try {
+      const text = await file.text()
+      const result = importBooks(text, importMode)
+      setFeedback(`导入成功：新增 ${result.added} 本，更新 ${result.updated} 本，跳过 ${result.skipped} 本。`)
+    } catch (e) {
+      setFeedback(`导入失败：${e instanceof Error ? e.message : '文件格式错误'}`)
+    }
+  }
+
+  const bookCards = useMemo(
+    () =>
+      books.map((book) => (
+        <button
+          key={book.id}
+          className="text-left bg-white rounded-xl border border-gray-200 p-4 space-y-3 hover:shadow-md transition-shadow"
+          onClick={() => setSelectedBook(book)}
+        >
+          <div className="flex justify-between gap-3">
+            <div>
+              <h3 className="font-semibold text-lg leading-tight">{book.title}</h3>
+              <p className="text-sm text-gray-600 mt-1">{book.author}</p>
+            </div>
+            <span className="text-xs rounded-full bg-indigo-50 text-indigo-700 px-2 py-1 h-fit">{book.status}</span>
           </div>
-        ),
-      },
-      {
-        accessorKey: 'author',
-        header: '作者',
-        cell: ({ row }) => <div className="text-gray-700">{row.original.author}</div>,
-      },
-      {
-        accessorKey: 'tags',
-        header: '标签',
-        cell: ({ row }) => (
-          <div className="flex flex-wrap gap-1">
-            {row.original.tags.map((tag, index) => (
-              <span
-                key={index}
-                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700"
-              >
-                {tag}
-              </span>
+          <div className="flex flex-wrap gap-2">
+            {book.tags.slice(0, 4).map((tag) => (
+              <span key={tag} className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-600">#{tag}</span>
             ))}
           </div>
-        ),
-      },
-      {
-        accessorKey: 'status',
-        header: '阅读状态',
-        cell: ({ row }) => <div className="text-gray-600">{row.original.status || '未标注'}</div>,
-      },
-      {
-        accessorKey: 'rating',
-        header: '评分',
-        cell: ({ row }) => (
-          <div className="text-gray-600">{row.original.rating ? `${row.original.rating} / 5` : '-'}</div>
-        ),
-      },
-      {
-        accessorKey: 'goodreads',
-        header: '外部链接',
-        cell: ({ row }) => (
-          <a
-            href={row.original.goodreads}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
-          >
-            <ExternalLink className="w-4 h-4 mr-1" />
-            Goodreads
-          </a>
-        ),
-      },
-    ],
-    [],
+          <p className="text-sm text-gray-500">评分：{book.rating !== null ? `${book.rating}/5` : '暂无'} {book.favorite ? '· 已收藏' : ''}</p>
+        </button>
+      )),
+    [books],
   )
 
-  const table = useReactTable({
-    data: books,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  })
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-red-600 text-lg font-semibold">书架加载失败</div>
-        <div className="text-gray-600 mt-2">{error}</div>
-      </div>
-    )
-  }
+  if (loading) return <div className="text-center py-20 text-gray-600">书架加载中...</div>
+  if (error) return <div className="text-center py-20 text-red-600">{error}</div>
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
       <div className="grid md:grid-cols-3 gap-4">
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-sm text-gray-500">当前可见</p>
-          <p className="text-2xl font-semibold text-gray-900">{filteredCount}</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-sm text-gray-500">总藏书</p>
-          <p className="text-2xl font-semibold text-gray-900">{totalBooks}</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-500">精选标记</p>
-            <p className="text-2xl font-semibold text-gray-900">{featuredCount}</p>
-          </div>
-          <Star className="h-5 w-5 text-amber-500" />
-        </div>
+        <Stat label="总书数" value={totalBooks} />
+        <Stat label="筛选后" value={filteredCount} />
+        <Stat label="收藏数" value={favoriteCount} />
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
-        <div className="grid gap-3 md:grid-cols-4">
-          <div className="md:col-span-2 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="按书名、作者或标签搜索"
-              value={filters.search}
-              onChange={(e) => updateSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      <section className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
+        <p className="text-sm font-medium text-gray-700">按分类快速筛选</p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setFilters({ ...filters, category: '' })}
+            className={`px-3 py-1 rounded-full text-sm border ${filters.category === '' ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-gray-300 text-gray-600'}`}
+          >
+            全部分类
+          </button>
+          {uniqueCategories.map((category) => (
+            <button
+              type="button"
+              key={category}
+              onClick={() => setFilters({ ...filters, category })}
+              className={`px-3 py-1 rounded-full text-sm border ${filters.category === category ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-gray-300 text-gray-600'}`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
+        <div className="grid md:grid-cols-4 gap-3">
+          <label className="md:col-span-2 relative">
+            <Search className="w-4 h-4 text-gray-400 absolute top-1/2 -translate-y-1/2 left-3" />
+            <input value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="搜索书名 / 作者 / 标签" className="w-full border border-gray-300 rounded-md pl-9 pr-3 py-2" />
+          </label>
+          <select className="border border-gray-300 rounded-md px-3 py-2" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
+            <option value="">全部状态</option><option>想读</option><option>在读</option><option>已读</option><option>搁置</option><option>弃读</option>
+          </select>
+          <select className="border border-gray-300 rounded-md px-3 py-2" value={filters.tag} onChange={(e) => setFilters({ ...filters, tag: e.target.value })}>
+            <option value="">全部标签</option>{uniqueTags.map((item) => <option key={item}>{item}</option>)}
+          </select>
+          <select className="border border-gray-300 rounded-md px-3 py-2" value={filters.language} onChange={(e) => setFilters({ ...filters, language: e.target.value })}>
+            <option value="">全部语言</option>{uniqueLanguages.map((item) => <option key={item}>{item}</option>)}
+          </select>
+          <select className="border border-gray-300 rounded-md px-3 py-2" value={filters.favorite} onChange={(e) => setFilters({ ...filters, favorite: e.target.value as typeof filters.favorite })}>
+            <option value="全部">全部收藏状态</option><option value="仅收藏">仅收藏</option>
+          </select>
+          <select className="border border-gray-300 rounded-md px-3 py-2" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+            {sortOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
+          <div className="grid grid-cols-2 gap-2">
+            <input type="number" min={0} max={5} step={0.1} value={filters.ratingMin} onChange={(e) => setFilters({ ...filters, ratingMin: Number(e.target.value) || 0 })} className="border border-gray-300 rounded-md px-3 py-2" placeholder="最低评分" />
+            <input type="number" min={0} max={5} step={0.1} value={filters.ratingMax} onChange={(e) => setFilters({ ...filters, ratingMax: Number(e.target.value) || 5 })} className="border border-gray-300 rounded-md px-3 py-2" placeholder="最高评分" />
+          </div>
+        </div>
+
+        <Button variant="outline" onClick={clearFilters}><X className="w-4 h-4 mr-1" />清空筛选</Button>
+      </section>
+
+      <section className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
+        <div className="flex items-center gap-2 text-gray-700 font-medium"><FolderArchive className="h-4 w-4" />导入导出工作台</div>
+        <div className="flex flex-wrap gap-2 items-center">
+          <Button variant="outline" onClick={() => handleExport('json')}><Download className="w-4 h-4 mr-1" />导出 JSON</Button>
+          <Button variant="outline" onClick={() => handleExport('csv')}><Download className="w-4 h-4 mr-1" />导出 CSV</Button>
+          <select value={importMode} onChange={(e) => setImportMode(e.target.value as ImportSummary['mode'])} className="border border-gray-300 rounded-md px-3 py-2 text-sm">
+            {importModes.map((mode) => <option key={mode} value={mode}>导入模式：{mode}</option>)}
+          </select>
+          <label className="inline-flex items-center gap-2 border border-gray-300 px-3 py-2 rounded-md cursor-pointer text-sm">
+            <Upload className="w-4 h-4" />导入 JSON
+            <input type="file" accept="application/json,.json" className="hidden" onChange={(e) => handleImportFile(e.target.files?.[0])} />
+          </label>
+        </div>
+        {feedback && <p className="text-sm text-green-700">{feedback}</p>}
+      </section>
+
+      <section className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{bookCards}</section>
+      {bookCards.length === 0 && <p className="text-center text-gray-500 py-10">没有匹配结果，请调整筛选条件。</p>}
+
+      <BookModal
+        book={selectedBook}
+        onClose={() => setSelectedBook(null)}
+        onEdit={(book) => {
+          setEditingBook(book)
+          setSelectedBook(null)
+        }}
+        onDelete={(book) => {
+          if (!window.confirm(`确认删除《${book.title}》吗？此操作不可撤销。`)) return
+          deleteBook(book.id)
+          setSelectedBook(null)
+          setFeedback('删除成功。')
+        }}
+      />
+
+      {editingBook && (
+        <div className="fixed inset-0 z-50 bg-black/40 overflow-y-auto p-4">
+          <div className="max-w-4xl mx-auto bg-gray-50 rounded-xl p-5">
+            <h3 className="text-xl font-semibold mb-4">编辑书籍</h3>
+            <BookForm
+              initialData={mapBookToForm(editingBook)}
+              submitText="保存编辑"
+              onSubmit={(form) => {
+                updateBook(editingBook.id, form)
+                setEditingBook(null)
+                setFeedback('编辑成功。')
+              }}
+              onCancel={() => setEditingBook(null)}
             />
           </div>
-
-          <select
-            value={filters.genre}
-            onChange={(e) => updateGenre(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">全部标签</option>
-            {uniqueGenres.map((genre) => (
-              <option key={genre} value={genre}>
-                {genre}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filters.language}
-            onChange={(e) => updateLanguage(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">全部语言</option>
-            {uniqueLanguages.map((language) => (
-              <option key={language} value={language}>
-                {language}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filters.status}
-            onChange={(e) => updateStatus(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">全部状态</option>
-            {uniqueStatuses.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-
-          {(filters.search || filters.genre || filters.language || filters.status) && (
-            <button
-              onClick={clearFilters}
-              className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <X className="w-4 h-4 mr-1" />
-              清空筛选
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="hidden lg:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      <div className="flex items-center space-x-1">
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        {{ asc: ' 🔼', desc: ' 🔽' }[header.column.getIsSorted() as string] ?? null}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50">
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4 align-top">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="lg:hidden space-y-4">
-        {books.map((book, index) => (
-          <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="space-y-3">
-              <div>
-                <h3 className="font-semibold text-gray-900 text-lg leading-tight">{book.title}</h3>
-                <p className="text-gray-600 text-sm mt-1">{book.author}</p>
-                {book.note && <p className="text-sm text-gray-500 mt-2">{book.note}</p>}
-              </div>
-
-              <div className="flex flex-wrap gap-1">
-                {book.tags.map((tag, tagIndex) => (
-                  <span
-                    key={tagIndex}
-                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <span>{book.status || '未标注'} · {book.language}</span>
-                <a
-                  href={book.goodreads}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center text-blue-600 hover:text-blue-800"
-                >
-                  <ExternalLink className="w-4 h-4 mr-1" />
-                  链接
-                </a>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {filteredCount === 0 && (
-        <div className="text-center py-12">
-          <Filter className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">没有匹配结果</h3>
-          <p className="mt-1 text-sm text-gray-500">试试放宽关键词或清空筛选条件</p>
         </div>
       )}
+    </div>
+  )
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4">
+      <p className="text-sm text-gray-500">{label}</p>
+      <p className="text-2xl font-semibold">{value}</p>
     </div>
   )
 }
