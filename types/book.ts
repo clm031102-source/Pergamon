@@ -23,6 +23,19 @@ export const PRESET_TAGS = [
   '方法论',
 ] as const
 
+export const PRESET_CATEGORIES = [
+  '文学小说',
+  '历史传记',
+  '人文社科',
+  '商业管理',
+  '科技互联网',
+  '产品设计',
+  '心理成长',
+  '投资理财',
+  '艺术创意',
+  '写作表达',
+] as const
+
 export interface BookNote {
   id: string
   content: string
