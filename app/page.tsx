@@ -1,228 +1,116 @@
 import Link from 'next/link'
-import {
-  BookOpen,
-  Search,
-  BarChart3,
-  Globe,
-  Download,
-  Camera,
-} from 'lucide-react'
+import { BookOpen, ArrowRight, Heart, Sparkles, Bookmark } from 'lucide-react'
 import Button from '@/components/ui/Button'
 
-/**
- * Landing page for Pergamon - The Personal Library OS
- */
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Hero Section */}
-      <header className="relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-purple-600/10"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
-          <div className="text-center">
-            <div className="flex items-center justify-center mb-6">
-              <BookOpen className="h-12 w-12 text-blue-600 mr-3" />
-              <h1 className="text-4xl font-bold text-gray-900">Pergamon</h1>
-            </div>
-            <h2 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-              The Personal
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                {' '}
-                Library OS
-              </span>
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-              In an age of algorithmic feeds and fleeting digital content, your
-              bookshelf is still your most personal archive — but it's stuck in
-              the analog world.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/demo">
-                <Button size="lg" className="text-lg px-8 py-4">
-                  View Demo
-                </Button>
-              </Link>
-              <Link href="/upload">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="text-lg px-8 py-4"
-                >
-                  Upload Photos
-                </Button>
-              </Link>
-            </div>
+    <div className="min-h-screen bg-stone-50 text-stone-800">
+      <header className="border-b border-stone-200 bg-white/90 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <BookOpen className="h-6 w-6 text-indigo-600" />
+            <span className="font-semibold text-lg">纸间漫游</span>
           </div>
+          <Link href="/demo" className="text-sm text-stone-600 hover:text-stone-900">
+            进入书架 →
+          </Link>
         </div>
       </header>
 
-      {/* Features Section */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h3 className="text-3xl font-bold text-gray-900 mb-4">
-              Visual Cataloging Platform for Readers
-            </h3>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Snap a photo of your shelf, and we instantly return a beautifully
-              organized digital library
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="text-center p-6 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors">
-              <Camera className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-              <h4 className="text-xl font-semibold text-gray-900 mb-2">
-                Visual Recognition
-              </h4>
-              <p className="text-gray-600">
-                No barcode scanning. No manual entry. Just one photo.
+      <main>
+        <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+          <div className="grid gap-8 md:grid-cols-5 items-end">
+            <div className="md:col-span-3 space-y-6">
+              <p className="text-sm tracking-wide uppercase text-stone-500">
+                我的私人阅读空间
               </p>
+              <h1 className="text-4xl md:text-6xl font-bold leading-tight text-stone-900">
+                纸间漫游
+                <span className="block text-2xl md:text-3xl text-stone-500 mt-3 font-medium">
+                  把读过的、想读的、反复回看的书，安静地放在一起。
+                </span>
+              </h1>
+              <p className="text-lg text-stone-600 max-w-2xl leading-relaxed">
+                这里不是打卡榜单，也不是速读清单，而是一间慢慢长出来的书房。欢迎你来翻翻，看看我最近在想什么。
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link href="/demo">
+                  <Button size="lg" className="px-8 py-4 text-base">
+                    去看我的完整书架
+                  </Button>
+                </Link>
+                <Link href="/stats">
+                  <Button variant="outline" size="lg" className="px-8 py-4 text-base">
+                    看看阅读统计
+                  </Button>
+                </Link>
+              </div>
             </div>
-
-            <div className="text-center p-6 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors">
-              <BarChart3 className="h-12 w-12 text-purple-600 mx-auto mb-4" />
-              <h4 className="text-xl font-semibold text-gray-900 mb-2">
-                Smart Organization
-              </h4>
-              <p className="text-gray-600">
-                Auto-tagged by genre, language, and author with AI.
-              </p>
-            </div>
-
-            <div className="text-center p-6 rounded-lg bg-green-50 hover:bg-green-100 transition-colors">
-              <Globe className="h-12 w-12 text-green-600 mx-auto mb-4" />
-              <h4 className="text-xl font-semibold text-gray-900 mb-2">
-                Rich Metadata
-              </h4>
-              <p className="text-gray-600">
-                Enriched with Goodreads links and summaries.
-              </p>
-            </div>
-
-            <div className="text-center p-6 rounded-lg bg-yellow-50 hover:bg-yellow-100 transition-colors">
-              <Search className="h-12 w-12 text-yellow-600 mx-auto mb-4" />
-              <h4 className="text-xl font-semibold text-gray-900 mb-2">
-                Advanced Search
-              </h4>
-              <p className="text-gray-600">
-                Find that book you loaned out years ago with semantic search.
-              </p>
-            </div>
-
-            <div className="text-center p-6 rounded-lg bg-red-50 hover:bg-red-100 transition-colors">
-              <BarChart3 className="h-12 w-12 text-red-600 mx-auto mb-4" />
-              <h4 className="text-xl font-semibold text-gray-900 mb-2">
-                Reading Insights
-              </h4>
-              <p className="text-gray-600">
-                Stats and insights on your reading habits and preferences.
-              </p>
-            </div>
-
-            <div className="text-center p-6 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition-colors">
-              <Download className="h-12 w-12 text-indigo-600 mx-auto mb-4" />
-              <h4 className="text-xl font-semibold text-gray-900 mb-2">
-                Export Anywhere
-              </h4>
-              <p className="text-gray-600">
-                Export to JSON, CSV, or sync with Notion. Your data, your way.
-              </p>
+            <div className="md:col-span-2">
+              <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-stone-500">本月阅读心情</span>
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                </div>
+                <p className="text-xl font-semibold">在人文与科技之间来回穿梭</p>
+                <p className="text-sm text-stone-600 leading-relaxed">
+                  白天读产品与设计，晚上读小说与随笔。最近尤其迷恋“城市、记忆、身份”的主题。
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Historical Context */}
-      <section className="py-20 bg-gradient-to-r from-gray-800 to-gray-900 text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h3 className="text-3xl font-bold mb-8">Why Pergamon?</h3>
-          <div className="text-lg leading-relaxed space-y-4">
-            <p>
-              Pergamon was an ancient Greek city that became a major center of
-              learning, culture, and science, second only to Alexandria in
-              intellectual prestige.
-            </p>
-            <p>
-              Home to the Library of Pergamon with over 200,000 scrolls, it
-              rivaled Alexandria's great library. When Egypt banned papyrus
-              exports to stop their growth, Pergamon invented parchment—
-              <em> literally creating a new way to preserve knowledge</em>.
-            </p>
-            <p className="text-blue-300 font-semibold">
-              Today, we're doing the same thing: turning your physical library
-              into a new form of organized, searchable knowledge.
-            </p>
+        <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+          <div className="grid md:grid-cols-3 gap-6">
+            <article className="md:col-span-2 rounded-2xl bg-white border border-stone-200 p-8">
+              <h2 className="text-2xl font-semibold mb-4">关于这个书架</h2>
+              <p className="text-stone-600 leading-relaxed">
+                我一直觉得，书架是一个人的“长期记忆”。它不会像社交媒体那样不断刷新，而是把你在不同阶段的关注、焦虑和热爱都留了下来。这个站点用最轻量的方式保存我的阅读轨迹：纯静态、可搜索、易分享。
+              </p>
+            </article>
+            <article className="rounded-2xl bg-white border border-stone-200 p-8">
+              <h2 className="text-xl font-semibold mb-4">我的阅读偏好</h2>
+              <ul className="space-y-3 text-sm text-stone-600">
+                <li className="flex gap-2"><Heart className="h-4 w-4 mt-0.5 text-rose-500" />社会科学与叙事非虚构</li>
+                <li className="flex gap-2"><Heart className="h-4 w-4 mt-0.5 text-rose-500" />当代中文小说与散文</li>
+                <li className="flex gap-2"><Heart className="h-4 w-4 mt-0.5 text-rose-500" />产品、设计、创作方法论</li>
+              </ul>
+            </article>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h3 className="text-4xl font-bold mb-6">
-            Ready to Transform Your Library?
-          </h3>
-          <p className="text-xl mb-8 opacity-90">
-            This isn't just a book tracker. It's a personal knowledge graph,
-            starting with your shelf.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/demo">
-              <Button
-                variant="outline"
-                size="lg"
-                className="text-lg px-8 py-4 bg-white text-blue-600 hover:bg-gray-100"
-              >
-                Try the Demo
-              </Button>
-            </Link>
-            <Button
-              variant="secondary"
-              size="lg"
-              className="text-lg px-8 py-4 bg-white/20 hover:bg-white/30"
-            >
-              Join Waitlist
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center mb-4 md:mb-0">
-              <BookOpen className="h-8 w-8 text-blue-400 mr-2" />
-              <span className="text-xl font-bold">Pergamon</span>
+        <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+          <div className="rounded-2xl border border-stone-200 bg-white p-8">
+            <div className="flex items-center gap-2 mb-4 text-indigo-600">
+              <Bookmark className="h-5 w-5" />
+              <h2 className="text-2xl font-semibold text-stone-900">精选书单 / 本月推荐</h2>
             </div>
-            <div className="flex space-x-6">
-              <Link
-                href="/demo"
-                className="text-gray-300 hover:text-white transition-colors"
-              >
-                Demo
-              </Link>
-              <Link
-                href="/upload"
-                className="text-gray-300 hover:text-white transition-colors"
-              >
-                Upload
-              </Link>
-              <Link
-                href="/stats"
-                className="text-gray-300 hover:text-white transition-colors"
-              >
-                Stats
+            <div className="grid md:grid-cols-3 gap-4 text-sm">
+              <div className="p-4 rounded-xl bg-stone-50">
+                <p className="font-medium">《置身事内》</p>
+                <p className="text-stone-500 mt-2">理解现实运行逻辑的一把钥匙，读完会更清醒。</p>
+              </div>
+              <div className="p-4 rounded-xl bg-stone-50">
+                <p className="font-medium">《变量》</p>
+                <p className="text-stone-500 mt-2">从年份切片看社会变化，适合做长期观察训练。</p>
+              </div>
+              <div className="p-4 rounded-xl bg-stone-50">
+                <p className="font-medium">《你当像鸟飞往你的山》</p>
+                <p className="text-stone-500 mt-2">关于教育、自我与重建，后劲很大。</p>
+              </div>
+            </div>
+            <div className="mt-8">
+              <Link href="/demo" className="inline-flex items-center text-indigo-600 hover:text-indigo-700 font-medium">
+                立即浏览完整书架 <ArrowRight className="h-4 w-4 ml-1" />
               </Link>
             </div>
           </div>
-          <div className="mt-8 pt-8 border-t border-gray-800 text-center text-gray-400">
-            <p>
-              &copy; 2024 Pergamon. Turning shelves into searchable knowledge.
-            </p>
-          </div>
-        </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-stone-200 py-8 text-center text-sm text-stone-500">
+        纸间漫游 · 一个持续更新的私人书架（Next.js + 静态 JSON）
       </footer>
     </div>
   )
