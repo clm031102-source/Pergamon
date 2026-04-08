@@ -16,11 +16,10 @@ interface BookFormProps {
   initialData?: BookFormData
   submitText: string
   onSubmit: (form: BookFormData) => void
-  onCancel?: () => void
   onDelete?: () => void
 }
 
-export default function BookForm({ initialData, submitText, onSubmit, onCancel, onDelete }: BookFormProps) {
+export default function BookForm({ initialData, submitText, onSubmit, onDelete }: BookFormProps) {
   const [form, setForm] = useState<BookFormData>(initialData ?? createEmptyForm())
   const [customTag, setCustomTag] = useState('')
   const [customCategory, setCustomCategory] = useState('')
@@ -33,19 +32,11 @@ export default function BookForm({ initialData, submitText, onSubmit, onCancel, 
     setForm({ ...form, tags: [...form.tags, tag] })
   }
 
-  const addCustomTag = () => {
-    const value = customTag.trim()
-    if (!value || form.tags.includes(value)) return
-    setForm({ ...form, tags: [...form.tags, value] })
-    setCustomTag('')
-  }
-
   const setRating = (value: number) => setForm({ ...form, rating: value.toFixed(1) })
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (requiredMissing) return setError('请至少填写必填项：书名、作者、分类。')
-    if (form.publishYear && (!Number.isFinite(Number(form.publishYear)) || Number(form.publishYear) < 0)) return setError('出版年份必须是合法数字。')
     if (form.pages && (!Number.isFinite(Number(form.pages)) || Number(form.pages) <= 0)) return setError('页数必须大于 0。')
     if (form.rating && (!Number.isFinite(Number(form.rating)) || Number(form.rating) < 0 || Number(form.rating) > 5 || Number(form.rating) % 0.5 !== 0)) return setError('评分必须在 0 到 5 之间，且以 0.5 为单位。')
     if (form.progress && (!Number.isFinite(Number(form.progress)) || Number(form.progress) < 0 || Number(form.progress) > 100)) return setError('阅读进度必须在 0 到 100 之间。')
@@ -59,12 +50,7 @@ export default function BookForm({ initialData, submitText, onSubmit, onCancel, 
         <h3 className="font-semibold text-lg">基础信息</h3>
         <div className="grid md:grid-cols-2 gap-4">
           <Input label="书名" required value={form.title} onChange={(value) => setForm({ ...form, title: value })} />
-          <Input label="副标题" value={form.subtitle} onChange={(value) => setForm({ ...form, subtitle: value })} />
           <Input label="作者" required value={form.author} onChange={(value) => setForm({ ...form, author: value })} />
-          <Input label="译者" value={form.translator} onChange={(value) => setForm({ ...form, translator: value })} />
-          <Input label="出版社" value={form.publisher} onChange={(value) => setForm({ ...form, publisher: value })} />
-          <Input label="出版年份" type="number" value={form.publishYear} onChange={(value) => setForm({ ...form, publishYear: value })} />
-          <Input label="ISBN" value={form.isbn} onChange={(value) => setForm({ ...form, isbn: value })} />
           <Input label="语言" value={form.language} onChange={(value) => setForm({ ...form, language: value })} />
           <Input label="页数" type="number" value={form.pages} onChange={(value) => setForm({ ...form, pages: value })} />
           <Input label="书本链接（可跳转）" value={form.bookUrl} onChange={(value) => setForm({ ...form, bookUrl: value })} />
@@ -95,19 +81,12 @@ export default function BookForm({ initialData, submitText, onSubmit, onCancel, 
           <p className="text-sm text-gray-700">标签（可多选，可新建）</p>
           <div className="flex flex-wrap gap-2">
             {PRESET_TAGS.map((tag) => (
-              <button
-                type="button"
-                key={tag}
-                onClick={() => toggleTag(tag)}
-                className={`px-3 py-1 rounded-full text-sm border ${form.tags.includes(tag) ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-gray-300 text-gray-600'}`}
-              >
-                {tag}
-              </button>
+              <button type="button" key={tag} onClick={() => toggleTag(tag)} className={`px-3 py-1 rounded-full text-sm border ${form.tags.includes(tag) ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-gray-300 text-gray-600'}`}>{tag}</button>
             ))}
           </div>
           <div className="flex gap-2">
             <input value={customTag} onChange={(e) => setCustomTag(e.target.value)} placeholder="自定义标签" className="flex-1 border border-gray-300 rounded-md px-3 py-2" />
-            <Button type="button" variant="outline" onClick={addCustomTag}>新增标签</Button>
+            <Button type="button" variant="outline" onClick={() => { const value = customTag.trim(); if (!value || form.tags.includes(value)) return; setForm({ ...form, tags: [...form.tags, value] }); setCustomTag('') }}>新增标签</Button>
           </div>
         </div>
       </section>
@@ -127,31 +106,16 @@ export default function BookForm({ initialData, submitText, onSubmit, onCancel, 
         <div className="space-y-2">
           <p className="text-sm text-gray-700">阅读进度</p>
           <div className="flex items-center gap-3">
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={Number(form.progress || 0)}
-              onChange={(e) => setForm({ ...form, progress: e.target.value })}
-              className="flex-1 accent-indigo-600"
-            />
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={form.progress}
-              onChange={(e) => setForm({ ...form, progress: e.target.value })}
-              className="w-20 border border-gray-300 rounded-md px-2 py-1"
-            />
+            <input type="range" min={0} max={100} step={1} value={Number(form.progress || 0)} onChange={(e) => setForm({ ...form, progress: e.target.value })} className="flex-1 accent-indigo-600" />
+            <input type="number" min={0} max={100} value={form.progress} onChange={(e) => setForm({ ...form, progress: e.target.value })} className="w-20 border border-gray-300 rounded-md px-2 py-1" />
             <span className="text-sm text-gray-600 w-12 text-right">{Number(form.progress || 0)}%</span>
           </div>
         </div>
 
         <div className="space-y-2">
           <p className="text-sm text-gray-700">评分（支持半星，0.5 为单位）</p>
-          <StarRating value={Number(form.rating || 0)} onChange={setRating} />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <StarRating value={Number(form.rating || 0)} onChange={setRating} />
             <input type="number" min={0} max={5} step={0.5} value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })} className="w-24 border border-gray-300 rounded-md px-2 py-1" />
             <span className="text-sm text-gray-500">/ 5</span>
           </div>
@@ -159,10 +123,6 @@ export default function BookForm({ initialData, submitText, onSubmit, onCancel, 
 
         <Textarea label="一句话短评" value={form.shortReview} onChange={(value) => setForm({ ...form, shortReview: value })} rows={2} />
         <Textarea label="长评 / 读后总结" value={form.longReview} onChange={(value) => setForm({ ...form, longReview: value })} rows={4} />
-        <div className="flex gap-6 text-sm">
-          <label className="inline-flex items-center gap-2"><input type="checkbox" checked={form.favorite} onChange={(e) => setForm({ ...form, favorite: e.target.checked })} />是否收藏</label>
-          <label className="inline-flex items-center gap-2"><input type="checkbox" checked={form.recommended} onChange={(e) => setForm({ ...form, recommended: e.target.checked })} />是否推荐</label>
-        </div>
       </section>
 
       <section className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4 shadow-sm">
@@ -191,7 +151,6 @@ export default function BookForm({ initialData, submitText, onSubmit, onCancel, 
       <div className="flex gap-3 flex-wrap">
         <Button type="submit" disabled={requiredMissing}>{submitText}</Button>
         {onDelete && <Button type="button" variant="outline" className="text-red-600 border-red-300" onClick={onDelete}>删除本书</Button>}
-        {onCancel && <Button type="button" variant="outline" onClick={onCancel}>关闭</Button>}
       </div>
     </form>
   )
