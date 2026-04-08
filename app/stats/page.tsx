@@ -1,112 +1,75 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import Navigation from '@/components/Navigation'
-import { Book } from '@/types/book'
+import { useBooks } from '@/lib/useBooks'
 
 export default function StatsPage() {
-  const [books, setBooks] = useState<Book[]>([])
-  const [loading, setLoading] = useState(true)
+  const { allBooks, stats } = useBooks()
 
-  useEffect(() => {
-    const fetchBooks = async () => {
-      try {
-        const response = await fetch('/user_bookshelf.json')
-        const data = await response.json()
-        setBooks(data)
-      } catch (error) {
-        console.error('读取书架数据失败:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchBooks()
-  }, [])
-
-  const tagStats = Object.entries(
-    books.reduce((acc, book) => {
-      book.tags?.forEach((tag) => {
-        acc[tag] = (acc[tag] || 0) + 1
-      })
-      return acc
-    }, {} as Record<string, number>),
-  )
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 10)
-
-  const statusStats = Object.entries(
-    books.reduce((acc, book) => {
-      const key = book.status || '未标注'
+  const categoryStats = Object.entries(
+    allBooks.reduce((acc, book) => {
+      const key = book.category || '未分类'
       acc[key] = (acc[key] || 0) + 1
       return acc
     }, {} as Record<string, number>),
-  ).sort(([, a], [, b]) => b - a)
+  ).sort((a, b) => b[1] - a[1])
 
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-lg text-gray-600">统计加载中...</div>
-      </main>
-    )
-  }
+  const ratingStats = [5, 4, 3, 2, 1, 0].map((rating) => ({
+    label: rating === 0 ? '未评分' : `${rating} 星`,
+    count: allBooks.filter((book) => (rating === 0 ? book.rating === null : Math.floor(book.rating ?? 0) === rating)).length,
+  }))
+
+  const authorStats = Object.entries(
+    allBooks.reduce((acc, book) => {
+      acc[book.author] = (acc[book.author] || 0) + 1
+      return acc
+    }, {} as Record<string, number>),
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+
+  const recentFinished = [...allBooks].filter((b) => b.finishedAt).sort((a, b) => +new Date(b.finishedAt) - +new Date(a.finishedAt)).slice(0, 5)
+  const recentAdded = [...allBooks].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)).slice(0, 5)
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <Navigation
-        currentPage="statistics"
-        title="阅读统计"
-        subtitle="把书架里的偏好和变化看得更清楚"
-      />
+      <Navigation currentPage="statistics" title="阅读统计" subtitle="从书架数据看到你的长期阅读轨迹" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+          <Card label="总书数" value={stats.total} />
+          <Card label="已读" value={stats.byStatus['已读']} />
+          <Card label="在读" value={stats.byStatus['在读']} />
+          <Card label="想读" value={stats.byStatus['想读']} />
+          <Card label="搁置" value={stats.byStatus['搁置']} />
+          <Card label="弃读" value={stats.byStatus['弃读']} />
+          <Card label="本月新增" value={stats.monthAdded} />
+          <Card label="本月读完" value={stats.monthFinished} />
+        </div>
 
-      <div className="py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">总藏书</h3>
-              <p className="text-3xl font-bold text-indigo-600">{books.length}</p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">标签数量</h3>
-              <p className="text-3xl font-bold text-green-600">{tagStats.length}</p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">平均评分</h3>
-              <p className="text-3xl font-bold text-amber-600">
-                {(
-                  books.reduce((sum, b) => sum + (b.rating || 0), 0) /
-                  Math.max(books.filter((b) => b.rating).length, 1)
-                ).toFixed(1)}
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">高频标签</h2>
-              <div className="space-y-3">
-                {tagStats.map(([tag, count]) => (
-                  <div key={tag} className="flex items-center justify-between">
-                    <span className="text-gray-700">{tag}</span>
-                    <span className="text-sm text-gray-500">{count} 本</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">阅读状态分布</h2>
-              <div className="space-y-3">
-                {statusStats.map(([status, count]) => (
-                  <div key={status} className="flex items-center justify-between">
-                    <span className="text-gray-700">{status}</span>
-                    <span className="text-sm text-gray-500">{count} 本</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+        <div className="grid lg:grid-cols-2 gap-6">
+          <ListCard title="分类分布" items={categoryStats.map(([name, count]) => `${name}：${count} 本`)} />
+          <ListCard title="评分分布" items={ratingStats.map((row) => `${row.label}：${row.count} 本`)} />
+          <ListCard title="作者出现次数（Top 10）" items={authorStats.map(([name, count]) => `${name}：${count} 本`)} />
+          <ListCard title="最近读完" items={recentFinished.map((book) => `${book.finishedAt} · ${book.title}`)} />
+          <ListCard title="最近添加" items={recentAdded.map((book) => `${book.createdAt.slice(0, 10)} · ${book.title}`)} />
         </div>
       </div>
     </main>
+  )
+}
+
+function Card({ label, value }: { label: string; value: number }) {
+  return <div className="bg-white rounded-lg border border-gray-200 p-3"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-semibold">{value}</p></div>
+}
+
+function ListCard({ title, items }: { title: string; items: string[] }) {
+  return (
+    <section className="bg-white rounded-lg border border-gray-200 p-4">
+      <h2 className="font-semibold mb-3">{title}</h2>
+      <ul className="space-y-2 text-sm text-gray-700">
+        {items.length === 0 && <li className="text-gray-400">暂无数据</li>}
+        {items.map((item) => <li key={item}>{item}</li>)}
+      </ul>
+    </section>
   )
 }

@@ -7,7 +7,7 @@ export default function DemoPage() {
       <Navigation
         currentPage="library"
         title="我的书架"
-        subtitle="一份可搜索、可筛选、可分享的阅读清单"
+        subtitle="搜索、筛选、排序、详情浮窗、编辑删除与导入导出都在这里"
       />
 
       <div className="py-8">
