@@ -1,51 +1,214 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
-import { Book, BookFilter } from '@/types/book'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  Book,
+  BookFilter,
+  BookFormData,
+  BookNote,
+  ImportSummary,
+  READING_STATUSES,
+  ReadingStatus,
+  SortOption,
+} from '@/types/book'
+
+const STORAGE_KEY = 'pergamon-bookshelf-v2'
+
+const DEFAULT_FILTERS: BookFilter = {
+  search: '',
+  status: '',
+  category: '',
+  tag: '',
+  language: '',
+  favorite: '全部',
+  ratingMin: 0,
+  ratingMax: 5,
+}
+
+export const emptyNote = (): BookNote => ({
+  id: crypto.randomUUID(),
+  content: '',
+  page: null,
+  type: '金句',
+  remark: '',
+})
+
+export const createEmptyForm = (): BookFormData => ({
+  title: '',
+  subtitle: '',
+  author: '',
+  translator: '',
+  publisher: '',
+  publishYear: '',
+  isbn: '',
+  language: '中文',
+  pages: '',
+  category: '',
+  tagsText: '',
+  coverUrl: '',
+  status: '想读',
+  startedAt: '',
+  finishedAt: '',
+  progress: '',
+  progressUnit: '百分比',
+  rating: '',
+  shortReview: '',
+  longReview: '',
+  favorite: false,
+  recommended: false,
+  notes: [],
+})
 
 type RawBook = Record<string, unknown>
 
+const normalizeStatus = (status: unknown): ReadingStatus => {
+  if (typeof status === 'string' && READING_STATUSES.includes(status as ReadingStatus)) {
+    return status as ReadingStatus
+  }
+  return '想读'
+}
+
 const normalizeBook = (raw: RawBook): Book => {
-  const tags = (raw.tags ?? raw.Tags) as string[] | undefined
+  const now = new Date().toISOString()
+  const tags = raw.tags
+  const notes = Array.isArray(raw.notes)
+    ? raw.notes
+        .map((note) => {
+          if (!note || typeof note !== 'object') return null
+          const n = note as Record<string, unknown>
+          return {
+            id: String(n.id ?? crypto.randomUUID()),
+            content: String(n.content ?? '').trim(),
+            page: typeof n.page === 'number' && Number.isFinite(n.page) ? n.page : null,
+            type:
+              n.type === '金句' || n.type === '观点' || n.type === '方法' || n.type === '灵感'
+                ? n.type
+                : '金句',
+            remark: String(n.remark ?? ''),
+          } as BookNote
+        })
+        .filter((note): note is BookNote => Boolean(note && note.content))
+    : []
 
   return {
+    id: String(raw.id ?? crypto.randomUUID()),
     title: String(raw.title ?? raw.Title ?? ''),
+    subtitle: String(raw.subtitle ?? ''),
     author: String(raw.author ?? raw.Author ?? ''),
-    language: String(raw.language ?? raw.Language ?? ''),
-    goodreads: String(raw.goodreads ?? raw.Goodreads ?? ''),
-    tags: Array.isArray(tags) ? tags.map(String) : [],
-    rating:
-      typeof raw.rating === 'number' && Number.isFinite(raw.rating)
-        ? raw.rating
-        : undefined,
-    note: typeof raw.note === 'string' ? raw.note : undefined,
-    featured: Boolean(raw.featured),
-    status:
-      raw.status === '想读' || raw.status === '在读' || raw.status === '已读'
-        ? raw.status
-        : undefined,
+    translator: String(raw.translator ?? ''),
+    publisher: String(raw.publisher ?? ''),
+    publishYear: typeof raw.publishYear === 'number' ? raw.publishYear : null,
+    isbn: String(raw.isbn ?? ''),
+    language: String(raw.language ?? raw.Language ?? '中文'),
+    pages: typeof raw.pages === 'number' ? raw.pages : null,
+    category: String(raw.category ?? ''),
+    tags: Array.isArray(tags) ? tags.map(String) : Array.isArray(raw.Tags) ? (raw.Tags as string[]) : [],
+    coverUrl: String(raw.coverUrl ?? ''),
+    status: normalizeStatus(raw.status),
+    startedAt: String(raw.startedAt ?? ''),
+    finishedAt: String(raw.finishedAt ?? ''),
+    progress: typeof raw.progress === 'number' ? raw.progress : null,
+    progressUnit: raw.progressUnit === '页数' ? '页数' : '百分比',
+    rating: typeof raw.rating === 'number' ? raw.rating : null,
+    shortReview: String(raw.shortReview ?? raw.note ?? ''),
+    longReview: String(raw.longReview ?? ''),
+    favorite: Boolean(raw.favorite ?? raw.featured),
+    recommended: Boolean(raw.recommended),
+    notes,
+    createdAt: String(raw.createdAt ?? now),
+    updatedAt: String(raw.updatedAt ?? now),
   }
 }
 
+const mapFormToBook = (form: BookFormData, existingId?: string, createdAt?: string): Book => {
+  const now = new Date().toISOString()
+  const publishYear = Number(form.publishYear)
+  const pages = Number(form.pages)
+  const progress = Number(form.progress)
+  const rating = Number(form.rating)
+
+  return {
+    id: existingId ?? crypto.randomUUID(),
+    title: form.title.trim(),
+    subtitle: form.subtitle.trim(),
+    author: form.author.trim(),
+    translator: form.translator.trim(),
+    publisher: form.publisher.trim(),
+    publishYear: Number.isFinite(publishYear) && publishYear > 0 ? publishYear : null,
+    isbn: form.isbn.trim(),
+    language: form.language.trim() || '中文',
+    pages: Number.isFinite(pages) && pages > 0 ? pages : null,
+    category: form.category.trim(),
+    tags: form.tagsText
+      .split(/[,，]/)
+      .map((tag) => tag.trim())
+      .filter(Boolean),
+    coverUrl: form.coverUrl.trim(),
+    status: form.status,
+    startedAt: form.startedAt,
+    finishedAt: form.finishedAt,
+    progress: Number.isFinite(progress) && progress >= 0 ? progress : null,
+    progressUnit: form.progressUnit,
+    rating: Number.isFinite(rating) && rating >= 0 && rating <= 5 ? rating : null,
+    shortReview: form.shortReview.trim(),
+    longReview: form.longReview.trim(),
+    favorite: form.favorite,
+    recommended: form.recommended,
+    notes: form.notes.filter((note) => note.content.trim()),
+    createdAt: createdAt ?? now,
+    updatedAt: now,
+  }
+}
+
+export const mapBookToForm = (book: Book): BookFormData => ({
+  title: book.title,
+  subtitle: book.subtitle,
+  author: book.author,
+  translator: book.translator,
+  publisher: book.publisher,
+  publishYear: book.publishYear ? String(book.publishYear) : '',
+  isbn: book.isbn,
+  language: book.language,
+  pages: book.pages ? String(book.pages) : '',
+  category: book.category,
+  tagsText: book.tags.join('，'),
+  coverUrl: book.coverUrl,
+  status: book.status,
+  startedAt: book.startedAt,
+  finishedAt: book.finishedAt,
+  progress: book.progress !== null ? String(book.progress) : '',
+  progressUnit: book.progressUnit,
+  rating: book.rating !== null ? String(book.rating) : '',
+  shortReview: book.shortReview,
+  longReview: book.longReview,
+  favorite: book.favorite,
+  recommended: book.recommended,
+  notes: book.notes,
+})
+
 export function useBooks() {
-  const [books, setBooks] = useState<Book[]>([])
+  const [allBooks, setAllBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filters, setFilters] = useState<BookFilter>({
-    search: '',
-    genre: '',
-    language: '',
-    status: '',
-  })
+  const [filters, setFilters] = useState<BookFilter>(DEFAULT_FILTERS)
+  const [sortBy, setSortBy] = useState<SortOption>('recentAdded')
 
   useEffect(() => {
-    const fetchBooks = async () => {
+    const loadBooks = async () => {
       try {
-        setLoading(true)
+        const localData = localStorage.getItem(STORAGE_KEY)
+        if (localData) {
+          const parsed = JSON.parse(localData) as RawBook[]
+          setAllBooks(parsed.map(normalizeBook).filter((book) => book.title))
+          return
+        }
+
         const response = await fetch('/user_bookshelf.json')
         if (!response.ok) throw new Error('加载书架数据失败')
         const data: RawBook[] = await response.json()
-        setBooks(data.map(normalizeBook).filter((book) => book.title))
+        const normalized = data.map(normalizeBook).filter((book) => book.title)
+        setAllBooks(normalized)
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized))
       } catch (err) {
         setError(err instanceof Error ? err.message : '发生未知错误')
       } finally {
@@ -53,77 +216,215 @@ export function useBooks() {
       }
     }
 
-    fetchBooks()
+    loadBooks()
   }, [])
 
-  const uniqueGenres = useMemo(() => {
-    const genres = new Set<string>()
-    books.forEach((book) => book.tags.forEach((tag) => genres.add(tag)))
-    return Array.from(genres).sort((a, b) => a.localeCompare(b, 'zh-CN'))
-  }, [books])
+  const persist = useCallback((next: Book[]) => {
+    setAllBooks(next)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  }, [])
 
-  const uniqueLanguages = useMemo(() => {
-    const languages = new Set<string>()
-    books.forEach((book) => languages.add(book.language))
-    return Array.from(languages).sort((a, b) => a.localeCompare(b, 'zh-CN'))
-  }, [books])
+  const addBook = useCallback(
+    (form: BookFormData) => {
+      const book = mapFormToBook(form)
+      persist([book, ...allBooks])
+    },
+    [allBooks, persist],
+  )
 
-  const uniqueStatuses = useMemo(() => {
-    const statuses = new Set<string>()
-    books.forEach((book) => {
-      if (book.status) statuses.add(book.status)
-    })
-    return Array.from(statuses)
-  }, [books])
+  const updateBook = useCallback(
+    (bookId: string, form: BookFormData) => {
+      const target = allBooks.find((book) => book.id === bookId)
+      if (!target) return
+      const updated = mapFormToBook(form, target.id, target.createdAt)
+      persist(allBooks.map((book) => (book.id === bookId ? updated : book)))
+    },
+    [allBooks, persist],
+  )
+
+  const deleteBook = useCallback(
+    (bookId: string) => {
+      persist(allBooks.filter((book) => book.id !== bookId))
+    },
+    [allBooks, persist],
+  )
 
   const filteredBooks = useMemo(() => {
-    return books.filter((book) => {
+    const filtered = allBooks.filter((book) => {
       if (filters.search) {
-        const searchTerm = filters.search.toLowerCase()
-        const titleMatch = book.title.toLowerCase().includes(searchTerm)
-        const authorMatch = book.author.toLowerCase().includes(searchTerm)
-        const tagMatch = book.tags.some((tag) =>
-          tag.toLowerCase().includes(searchTerm),
-        )
-        if (!titleMatch && !authorMatch && !tagMatch) return false
+        const term = filters.search.toLowerCase()
+        const matched =
+          book.title.toLowerCase().includes(term) ||
+          book.author.toLowerCase().includes(term) ||
+          book.tags.some((tag) => tag.toLowerCase().includes(term))
+        if (!matched) return false
       }
 
-      if (filters.genre && !book.tags.includes(filters.genre)) return false
-      if (filters.language && book.language !== filters.language) return false
       if (filters.status && book.status !== filters.status) return false
+      if (filters.category && book.category !== filters.category) return false
+      if (filters.tag && !book.tags.includes(filters.tag)) return false
+      if (filters.language && book.language !== filters.language) return false
+      if (filters.favorite === '仅收藏' && !book.favorite) return false
+
+      const score = book.rating ?? 0
+      if (score < filters.ratingMin || score > filters.ratingMax) return false
 
       return true
     })
-  }, [books, filters])
 
-  const updateSearch = (search: string) =>
-    setFilters((prev: BookFilter) => ({ ...prev, search }))
-  const updateGenre = (genre: string) =>
-    setFilters((prev: BookFilter) => ({ ...prev, genre }))
-  const updateLanguage = (language: string) =>
-    setFilters((prev: BookFilter) => ({ ...prev, language }))
-  const updateStatus = (status: string) =>
-    setFilters((prev: BookFilter) => ({ ...prev, status }))
+    return filtered.sort((a, b) => {
+      if (sortBy === 'recentAdded') return +new Date(b.createdAt) - +new Date(a.createdAt)
+      if (sortBy === 'recentFinished') return +new Date(b.finishedAt || 0) - +new Date(a.finishedAt || 0)
+      if (sortBy === 'ratingDesc') return (b.rating ?? 0) - (a.rating ?? 0)
+      if (sortBy === 'titleAsc') return a.title.localeCompare(b.title, 'zh-CN')
+      if (sortBy === 'authorAsc') return a.author.localeCompare(b.author, 'zh-CN')
+      return (b.publishYear ?? 0) - (a.publishYear ?? 0)
+    })
+  }, [allBooks, filters, sortBy])
 
-  const clearFilters = () => {
-    setFilters({ search: '', genre: '', language: '', status: '' })
-  }
+  const uniqueCategories = useMemo(
+    () => Array.from(new Set(allBooks.map((book) => book.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN')),
+    [allBooks],
+  )
+  const uniqueLanguages = useMemo(
+    () => Array.from(new Set(allBooks.map((book) => book.language).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN')),
+    [allBooks],
+  )
+  const uniqueTags = useMemo(
+    () =>
+      Array.from(
+        new Set(allBooks.flatMap((book) => book.tags).filter(Boolean)),
+      ).sort((a, b) => a.localeCompare(b, 'zh-CN')),
+    [allBooks],
+  )
+
+  const stats = useMemo(() => {
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = now.getMonth()
+
+    const byStatus = READING_STATUSES.reduce(
+      (acc, status) => ({ ...acc, [status]: allBooks.filter((book) => book.status === status).length }),
+      {} as Record<ReadingStatus, number>,
+    )
+
+    const monthAdded = allBooks.filter((book) => {
+      const d = new Date(book.createdAt)
+      return d.getFullYear() === y && d.getMonth() === m
+    }).length
+
+    const monthFinished = allBooks.filter((book) => {
+      if (!book.finishedAt) return false
+      const d = new Date(book.finishedAt)
+      return d.getFullYear() === y && d.getMonth() === m
+    }).length
+
+    return {
+      total: allBooks.length,
+      favorite: allBooks.filter((book) => book.favorite).length,
+      byStatus,
+      monthAdded,
+      monthFinished,
+    }
+  }, [allBooks])
+
+  const noteItems = useMemo(
+    () =>
+      allBooks.flatMap((book) =>
+        book.notes.map((note) => ({
+          ...note,
+          bookId: book.id,
+          bookTitle: book.title,
+          author: book.author,
+        })),
+      ),
+    [allBooks],
+  )
+
+  const exportJson = useCallback(() => JSON.stringify(allBooks, null, 2), [allBooks])
+
+  const exportCsv = useCallback(() => {
+    const header = ['书名', '作者', '状态', '分类', '标签', '评分', '是否收藏', '添加时间']
+    const rows = allBooks.map((book) => [
+      book.title,
+      book.author,
+      book.status,
+      book.category,
+      book.tags.join('|'),
+      book.rating ?? '',
+      book.favorite ? '是' : '否',
+      book.createdAt,
+    ])
+
+    return [header, ...rows]
+      .map((row) => row.map((col) => `"${String(col).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+  }, [allBooks])
+
+  const importBooks = useCallback(
+    (rawText: string, mode: ImportSummary['mode']): ImportSummary => {
+      const raw = JSON.parse(rawText)
+      if (!Array.isArray(raw)) throw new Error('导入文件必须是数组结构')
+      const incoming = raw.map((item) => normalizeBook(item as RawBook)).filter((book) => book.title)
+
+      if (mode === '覆盖') {
+        persist(incoming)
+        return { mode, added: incoming.length, updated: 0, skipped: 0 }
+      }
+
+      const existingMap = new Map(allBooks.map((book) => [book.id, book]))
+      let added = 0
+      let updated = 0
+      let skipped = 0
+
+      incoming.forEach((book) => {
+        const duplicate =
+          existingMap.get(book.id) ?? allBooks.find((b) => b.title === book.title && b.author === book.author)
+
+        if (duplicate && mode === '跳过重复') {
+          skipped += 1
+          return
+        }
+
+        if (duplicate) {
+          existingMap.set(duplicate.id, { ...book, id: duplicate.id, createdAt: duplicate.createdAt })
+          updated += 1
+          return
+        }
+
+        existingMap.set(book.id, book)
+        added += 1
+      })
+
+      persist(Array.from(existingMap.values()))
+      return { mode, added, updated, skipped }
+    },
+    [allBooks, persist],
+  )
 
   return {
+    allBooks,
     books: filteredBooks,
     loading,
     error,
     filters,
-    uniqueGenres,
+    sortBy,
+    uniqueCategories,
     uniqueLanguages,
-    uniqueStatuses,
-    updateSearch,
-    updateGenre,
-    updateLanguage,
-    updateStatus,
-    clearFilters,
-    totalBooks: books.length,
+    uniqueTags,
+    stats,
+    noteItems,
+    setSortBy,
+    setFilters,
+    clearFilters: () => setFilters(DEFAULT_FILTERS),
+    addBook,
+    updateBook,
+    deleteBook,
+    exportJson,
+    exportCsv,
+    importBooks,
+    totalBooks: allBooks.length,
     filteredCount: filteredBooks.length,
-    featuredCount: books.filter((book) => book.featured).length,
+    favoriteCount: allBooks.filter((book) => book.favorite).length,
   }
 }
