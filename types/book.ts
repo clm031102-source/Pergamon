@@ -4,6 +4,25 @@ export type ReadingStatus = (typeof READING_STATUSES)[number]
 export const NOTE_TYPES = ['金句', '观点', '方法', '灵感'] as const
 export type NoteType = (typeof NOTE_TYPES)[number]
 
+export const PRESET_TAGS = [
+  '文学',
+  '小说',
+  '历史',
+  '哲学',
+  '心理学',
+  '社会学',
+  '经济',
+  '商业',
+  '管理',
+  '产品',
+  '设计',
+  '写作',
+  '个人成长',
+  '传记',
+  '科技',
+  '方法论',
+] as const
+
 export interface BookNote {
   id: string
   content: string
@@ -25,7 +44,7 @@ export interface Book {
   pages: number | null
   category: string
   tags: string[]
-  coverUrl: string
+  bookUrl: string
   status: ReadingStatus
   startedAt: string
   finishedAt: string
@@ -71,8 +90,8 @@ export interface BookFormData {
   language: string
   pages: string
   category: string
-  tagsText: string
-  coverUrl: string
+  tags: string[]
+  bookUrl: string
   status: ReadingStatus
   startedAt: string
   finishedAt: string

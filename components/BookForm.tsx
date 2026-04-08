@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useMemo, useState } from 'react'
-import { BookFormData, NOTE_TYPES, READING_STATUSES } from '@/types/book'
+import { BookFormData, NOTE_TYPES, PRESET_TAGS, READING_STATUSES } from '@/types/book'
 import { createEmptyForm, emptyNote } from '@/lib/useBooks'
 import Button from '@/components/ui/Button'
 
@@ -14,9 +14,25 @@ interface BookFormProps {
 
 export default function BookForm({ initialData, submitText, onSubmit, onCancel }: BookFormProps) {
   const [form, setForm] = useState<BookFormData>(initialData ?? createEmptyForm())
+  const [customTag, setCustomTag] = useState('')
   const [error, setError] = useState('')
 
   const requiredMissing = useMemo(() => !form.title.trim() || !form.author.trim() || !form.category.trim(), [form])
+
+  const toggleTag = (tag: string) => {
+    if (form.tags.includes(tag)) {
+      setForm({ ...form, tags: form.tags.filter((item) => item !== tag) })
+      return
+    }
+    setForm({ ...form, tags: [...form.tags, tag] })
+  }
+
+  const addCustomTag = () => {
+    const value = customTag.trim()
+    if (!value || form.tags.includes(value)) return
+    setForm({ ...form, tags: [...form.tags, value] })
+    setCustomTag('')
+  }
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -44,8 +60,43 @@ export default function BookForm({ initialData, submitText, onSubmit, onCancel }
           <Input label="语言" value={form.language} onChange={(value) => setForm({ ...form, language: value })} />
           <Input label="页数" type="number" value={form.pages} onChange={(value) => setForm({ ...form, pages: value })} />
           <Input label="分类" required value={form.category} onChange={(value) => setForm({ ...form, category: value })} />
-          <Input label="标签（逗号分隔）" value={form.tagsText} onChange={(value) => setForm({ ...form, tagsText: value })} />
-          <Input label="封面图片链接" value={form.coverUrl} onChange={(value) => setForm({ ...form, coverUrl: value })} />
+          <Input label="书本链接（可跳转）" value={form.bookUrl} onChange={(value) => setForm({ ...form, bookUrl: value })} />
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-sm text-gray-700">标签（可多选）</p>
+          <div className="flex flex-wrap gap-2">
+            {PRESET_TAGS.map((tag) => (
+              <button
+                type="button"
+                key={tag}
+                onClick={() => toggleTag(tag)}
+                className={`px-3 py-1 rounded-full text-sm border ${form.tags.includes(tag) ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-gray-300 text-gray-600'}`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <input
+              value={customTag}
+              onChange={(e) => setCustomTag(e.target.value)}
+              placeholder="自定义标签"
+              className="flex-1 border border-gray-300 rounded-md px-3 py-2"
+            />
+            <Button type="button" variant="outline" onClick={addCustomTag}>新增标签</Button>
+          </div>
+
+          {form.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {form.tags.map((tag) => (
+                <button key={tag} type="button" className="px-2 py-1 rounded-md bg-gray-100 text-sm" onClick={() => toggleTag(tag)}>
+                  {tag} ×
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

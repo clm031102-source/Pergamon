@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Search, X, Upload, Download } from 'lucide-react'
+import { Search, X, Upload, Download, FolderArchive } from 'lucide-react'
 import { mapBookToForm, useBooks } from '@/lib/useBooks'
 import { Book, ImportSummary } from '@/types/book'
 import BookModal from '@/components/BookModal'
@@ -108,21 +108,36 @@ export default function BookTable() {
       </div>
 
       <section className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
+        <p className="text-sm font-medium text-gray-700">按分类快速筛选</p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setFilters({ ...filters, category: '' })}
+            className={`px-3 py-1 rounded-full text-sm border ${filters.category === '' ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-gray-300 text-gray-600'}`}
+          >
+            全部分类
+          </button>
+          {uniqueCategories.map((category) => (
+            <button
+              type="button"
+              key={category}
+              onClick={() => setFilters({ ...filters, category })}
+              className={`px-3 py-1 rounded-full text-sm border ${filters.category === category ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-gray-300 text-gray-600'}`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
         <div className="grid md:grid-cols-4 gap-3">
           <label className="md:col-span-2 relative">
             <Search className="w-4 h-4 text-gray-400 absolute top-1/2 -translate-y-1/2 left-3" />
-            <input
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              placeholder="搜索书名 / 作者 / 标签"
-              className="w-full border border-gray-300 rounded-md pl-9 pr-3 py-2"
-            />
+            <input value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} placeholder="搜索书名 / 作者 / 标签" className="w-full border border-gray-300 rounded-md pl-9 pr-3 py-2" />
           </label>
           <select className="border border-gray-300 rounded-md px-3 py-2" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
             <option value="">全部状态</option><option>想读</option><option>在读</option><option>已读</option><option>搁置</option><option>弃读</option>
-          </select>
-          <select className="border border-gray-300 rounded-md px-3 py-2" value={filters.category} onChange={(e) => setFilters({ ...filters, category: e.target.value })}>
-            <option value="">全部分类</option>{uniqueCategories.map((item) => <option key={item}>{item}</option>)}
           </select>
           <select className="border border-gray-300 rounded-md px-3 py-2" value={filters.tag} onChange={(e) => setFilters({ ...filters, tag: e.target.value })}>
             <option value="">全部标签</option>{uniqueTags.map((item) => <option key={item}>{item}</option>)}
@@ -142,8 +157,12 @@ export default function BookTable() {
           </div>
         </div>
 
+        <Button variant="outline" onClick={clearFilters}><X className="w-4 h-4 mr-1" />清空筛选</Button>
+      </section>
+
+      <section className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
+        <div className="flex items-center gap-2 text-gray-700 font-medium"><FolderArchive className="h-4 w-4" />导入导出工作台</div>
         <div className="flex flex-wrap gap-2 items-center">
-          <Button variant="outline" onClick={clearFilters}><X className="w-4 h-4 mr-1" />清空筛选</Button>
           <Button variant="outline" onClick={() => handleExport('json')}><Download className="w-4 h-4 mr-1" />导出 JSON</Button>
           <Button variant="outline" onClick={() => handleExport('csv')}><Download className="w-4 h-4 mr-1" />导出 CSV</Button>
           <select value={importMode} onChange={(e) => setImportMode(e.target.value as ImportSummary['mode'])} className="border border-gray-300 rounded-md px-3 py-2 text-sm">
@@ -154,12 +173,10 @@ export default function BookTable() {
             <input type="file" accept="application/json,.json" className="hidden" onChange={(e) => handleImportFile(e.target.files?.[0])} />
           </label>
         </div>
-
         {feedback && <p className="text-sm text-green-700">{feedback}</p>}
       </section>
 
       <section className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{bookCards}</section>
-
       {bookCards.length === 0 && <p className="text-center text-gray-500 py-10">没有匹配结果，请调整筛选条件。</p>}
 
       <BookModal

@@ -1,5 +1,6 @@
 'use client'
 
+import { ExternalLink } from 'lucide-react'
 import { Book } from '@/types/book'
 import Button from '@/components/ui/Button'
 
@@ -17,18 +18,16 @@ export default function BookModal({ book, onClose, onEdit, onDelete }: BookModal
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <button className="absolute inset-0 bg-black/40" onClick={onClose} aria-label="关闭浮窗" />
       <article className="relative w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl p-6 space-y-5">
-        <header className="flex gap-4">
-          {book.coverUrl ? (
-            <img src={book.coverUrl} alt={book.title} className="w-24 h-32 object-cover rounded-md border border-gray-200" />
-          ) : (
-            <div className="w-24 h-32 rounded-md border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-500">暂无封面</div>
+        <header className="space-y-1">
+          <h2 className="text-2xl font-semibold">{book.title}</h2>
+          {book.subtitle && <p className="text-gray-600">{book.subtitle}</p>}
+          <p className="text-sm text-gray-600">{book.author}{book.translator ? ` / 译者：${book.translator}` : ''}</p>
+          <p className="text-sm text-gray-500">{book.publisher || '未填写出版社'} {book.publishYear ? `· ${book.publishYear}` : ''}</p>
+          {book.bookUrl && (
+            <a href={book.bookUrl} target="_blank" rel="noreferrer" className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800">
+              访问书本链接 <ExternalLink className="h-4 w-4 ml-1" />
+            </a>
           )}
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold">{book.title}</h2>
-            {book.subtitle && <p className="text-gray-600">{book.subtitle}</p>}
-            <p className="text-sm text-gray-600">{book.author}{book.translator ? ` / 译者：${book.translator}` : ''}</p>
-            <p className="text-sm text-gray-500">{book.publisher || '未填写出版社'} {book.publishYear ? `· ${book.publishYear}` : ''}</p>
-          </div>
         </header>
 
         <section className="grid md:grid-cols-2 gap-4 text-sm">

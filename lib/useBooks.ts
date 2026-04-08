@@ -12,7 +12,7 @@ import {
   SortOption,
 } from '@/types/book'
 
-const STORAGE_KEY = 'pergamon-bookshelf-v2'
+const STORAGE_KEY = 'pergamon-bookshelf-v3'
 
 const DEFAULT_FILTERS: BookFilter = {
   search: '',
@@ -44,8 +44,8 @@ export const createEmptyForm = (): BookFormData => ({
   language: '中文',
   pages: '',
   category: '',
-  tagsText: '',
-  coverUrl: '',
+  tags: [],
+  bookUrl: '',
   status: '想读',
   startedAt: '',
   finishedAt: '',
@@ -70,7 +70,9 @@ const normalizeStatus = (status: unknown): ReadingStatus => {
 
 const normalizeBook = (raw: RawBook): Book => {
   const now = new Date().toISOString()
-  const tags = raw.tags
+  const tags = Array.isArray(raw.tags) ? raw.tags.map(String) : Array.isArray(raw.Tags) ? (raw.Tags as string[]) : []
+  const category = String(raw.category ?? '').trim() || tags[0] || '未分类'
+
   const notes = Array.isArray(raw.notes)
     ? raw.notes
         .map((note) => {
@@ -80,10 +82,7 @@ const normalizeBook = (raw: RawBook): Book => {
             id: String(n.id ?? crypto.randomUUID()),
             content: String(n.content ?? '').trim(),
             page: typeof n.page === 'number' && Number.isFinite(n.page) ? n.page : null,
-            type:
-              n.type === '金句' || n.type === '观点' || n.type === '方法' || n.type === '灵感'
-                ? n.type
-                : '金句',
+            type: n.type === '金句' || n.type === '观点' || n.type === '方法' || n.type === '灵感' ? n.type : '金句',
             remark: String(n.remark ?? ''),
           } as BookNote
         })
@@ -92,18 +91,18 @@ const normalizeBook = (raw: RawBook): Book => {
 
   return {
     id: String(raw.id ?? crypto.randomUUID()),
-    title: String(raw.title ?? raw.Title ?? ''),
+    title: String(raw.title ?? raw.Title ?? '').trim(),
     subtitle: String(raw.subtitle ?? ''),
-    author: String(raw.author ?? raw.Author ?? ''),
+    author: String(raw.author ?? raw.Author ?? '').trim(),
     translator: String(raw.translator ?? ''),
     publisher: String(raw.publisher ?? ''),
     publishYear: typeof raw.publishYear === 'number' ? raw.publishYear : null,
     isbn: String(raw.isbn ?? ''),
     language: String(raw.language ?? raw.Language ?? '中文'),
     pages: typeof raw.pages === 'number' ? raw.pages : null,
-    category: String(raw.category ?? ''),
-    tags: Array.isArray(tags) ? tags.map(String) : Array.isArray(raw.Tags) ? (raw.Tags as string[]) : [],
-    coverUrl: String(raw.coverUrl ?? ''),
+    category,
+    tags,
+    bookUrl: String(raw.bookUrl ?? raw.goodreads ?? ''),
     status: normalizeStatus(raw.status),
     startedAt: String(raw.startedAt ?? ''),
     finishedAt: String(raw.finishedAt ?? ''),
@@ -138,12 +137,9 @@ const mapFormToBook = (form: BookFormData, existingId?: string, createdAt?: stri
     isbn: form.isbn.trim(),
     language: form.language.trim() || '中文',
     pages: Number.isFinite(pages) && pages > 0 ? pages : null,
-    category: form.category.trim(),
-    tags: form.tagsText
-      .split(/[,，]/)
-      .map((tag) => tag.trim())
-      .filter(Boolean),
-    coverUrl: form.coverUrl.trim(),
+    category: form.category.trim() || form.tags[0] || '未分类',
+    tags: form.tags,
+    bookUrl: form.bookUrl.trim(),
     status: form.status,
     startedAt: form.startedAt,
     finishedAt: form.finishedAt,
@@ -171,8 +167,8 @@ export const mapBookToForm = (book: Book): BookFormData => ({
   language: book.language,
   pages: book.pages ? String(book.pages) : '',
   category: book.category,
-  tagsText: book.tags.join('，'),
-  coverUrl: book.coverUrl,
+  tags: book.tags,
+  bookUrl: book.bookUrl,
   status: book.status,
   startedAt: book.startedAt,
   finishedAt: book.finishedAt,
@@ -203,12 +199,7 @@ export function useBooks() {
           return
         }
 
-        const response = await fetch('/user_bookshelf.json')
-        if (!response.ok) throw new Error('加载书架数据失败')
-        const data: RawBook[] = await response.json()
-        const normalized = data.map(normalizeBook).filter((book) => book.title)
-        setAllBooks(normalized)
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized))
+        setAllBooks([])
       } catch (err) {
         setError(err instanceof Error ? err.message : '发生未知错误')
       } finally {
@@ -224,39 +215,27 @@ export function useBooks() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
   }, [])
 
-  const addBook = useCallback(
-    (form: BookFormData) => {
-      const book = mapFormToBook(form)
-      persist([book, ...allBooks])
-    },
-    [allBooks, persist],
-  )
+  const addBook = useCallback((form: BookFormData) => {
+    const book = mapFormToBook(form)
+    persist([book, ...allBooks])
+  }, [allBooks, persist])
 
-  const updateBook = useCallback(
-    (bookId: string, form: BookFormData) => {
-      const target = allBooks.find((book) => book.id === bookId)
-      if (!target) return
-      const updated = mapFormToBook(form, target.id, target.createdAt)
-      persist(allBooks.map((book) => (book.id === bookId ? updated : book)))
-    },
-    [allBooks, persist],
-  )
+  const updateBook = useCallback((bookId: string, form: BookFormData) => {
+    const target = allBooks.find((book) => book.id === bookId)
+    if (!target) return
+    const updated = mapFormToBook(form, target.id, target.createdAt)
+    persist(allBooks.map((book) => (book.id === bookId ? updated : book)))
+  }, [allBooks, persist])
 
-  const deleteBook = useCallback(
-    (bookId: string) => {
-      persist(allBooks.filter((book) => book.id !== bookId))
-    },
-    [allBooks, persist],
-  )
+  const deleteBook = useCallback((bookId: string) => {
+    persist(allBooks.filter((book) => book.id !== bookId))
+  }, [allBooks, persist])
 
   const filteredBooks = useMemo(() => {
     const filtered = allBooks.filter((book) => {
       if (filters.search) {
         const term = filters.search.toLowerCase()
-        const matched =
-          book.title.toLowerCase().includes(term) ||
-          book.author.toLowerCase().includes(term) ||
-          book.tags.some((tag) => tag.toLowerCase().includes(term))
+        const matched = book.title.toLowerCase().includes(term) || book.author.toLowerCase().includes(term) || book.tags.some((tag) => tag.toLowerCase().includes(term))
         if (!matched) return false
       }
 
@@ -268,7 +247,6 @@ export function useBooks() {
 
       const score = book.rating ?? 0
       if (score < filters.ratingMin || score > filters.ratingMax) return false
-
       return true
     })
 
@@ -282,21 +260,9 @@ export function useBooks() {
     })
   }, [allBooks, filters, sortBy])
 
-  const uniqueCategories = useMemo(
-    () => Array.from(new Set(allBooks.map((book) => book.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN')),
-    [allBooks],
-  )
-  const uniqueLanguages = useMemo(
-    () => Array.from(new Set(allBooks.map((book) => book.language).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN')),
-    [allBooks],
-  )
-  const uniqueTags = useMemo(
-    () =>
-      Array.from(
-        new Set(allBooks.flatMap((book) => book.tags).filter(Boolean)),
-      ).sort((a, b) => a.localeCompare(b, 'zh-CN')),
-    [allBooks],
-  )
+  const uniqueCategories = useMemo(() => Array.from(new Set(allBooks.map((book) => book.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN')), [allBooks])
+  const uniqueLanguages = useMemo(() => Array.from(new Set(allBooks.map((book) => book.language).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN')), [allBooks])
+  const uniqueTags = useMemo(() => Array.from(new Set(allBooks.flatMap((book) => book.tags).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'zh-CN')), [allBooks])
 
   const stats = useMemo(() => {
     const now = new Date()
@@ -308,99 +274,68 @@ export function useBooks() {
       {} as Record<ReadingStatus, number>,
     )
 
-    const monthAdded = allBooks.filter((book) => {
-      const d = new Date(book.createdAt)
-      return d.getFullYear() === y && d.getMonth() === m
-    }).length
-
-    const monthFinished = allBooks.filter((book) => {
-      if (!book.finishedAt) return false
-      const d = new Date(book.finishedAt)
-      return d.getFullYear() === y && d.getMonth() === m
-    }).length
-
     return {
       total: allBooks.length,
       favorite: allBooks.filter((book) => book.favorite).length,
       byStatus,
-      monthAdded,
-      monthFinished,
+      monthAdded: allBooks.filter((book) => {
+        const d = new Date(book.createdAt)
+        return d.getFullYear() === y && d.getMonth() === m
+      }).length,
+      monthFinished: allBooks.filter((book) => {
+        if (!book.finishedAt) return false
+        const d = new Date(book.finishedAt)
+        return d.getFullYear() === y && d.getMonth() === m
+      }).length,
     }
   }, [allBooks])
 
   const noteItems = useMemo(
-    () =>
-      allBooks.flatMap((book) =>
-        book.notes.map((note) => ({
-          ...note,
-          bookId: book.id,
-          bookTitle: book.title,
-          author: book.author,
-        })),
-      ),
+    () => allBooks.flatMap((book) => book.notes.map((note) => ({ ...note, bookId: book.id, bookTitle: book.title, author: book.author }))),
     [allBooks],
   )
 
   const exportJson = useCallback(() => JSON.stringify(allBooks, null, 2), [allBooks])
 
   const exportCsv = useCallback(() => {
-    const header = ['书名', '作者', '状态', '分类', '标签', '评分', '是否收藏', '添加时间']
-    const rows = allBooks.map((book) => [
-      book.title,
-      book.author,
-      book.status,
-      book.category,
-      book.tags.join('|'),
-      book.rating ?? '',
-      book.favorite ? '是' : '否',
-      book.createdAt,
-    ])
-
-    return [header, ...rows]
-      .map((row) => row.map((col) => `"${String(col).replace(/"/g, '""')}"`).join(','))
-      .join('\n')
+    const header = ['书名', '作者', '状态', '分类', '标签', '评分', '是否收藏', '书本链接', '添加时间']
+    const rows = allBooks.map((book) => [book.title, book.author, book.status, book.category, book.tags.join('|'), book.rating ?? '', book.favorite ? '是' : '否', book.bookUrl, book.createdAt])
+    return [header, ...rows].map((row) => row.map((col) => `"${String(col).replace(/"/g, '""')}"`).join(',')).join('\n')
   }, [allBooks])
 
-  const importBooks = useCallback(
-    (rawText: string, mode: ImportSummary['mode']): ImportSummary => {
-      const raw = JSON.parse(rawText)
-      if (!Array.isArray(raw)) throw new Error('导入文件必须是数组结构')
-      const incoming = raw.map((item) => normalizeBook(item as RawBook)).filter((book) => book.title)
+  const importBooks = useCallback((rawText: string, mode: ImportSummary['mode']): ImportSummary => {
+    const raw = JSON.parse(rawText)
+    if (!Array.isArray(raw)) throw new Error('导入文件必须是数组结构')
+    const incoming = raw.map((item) => normalizeBook(item as RawBook)).filter((book) => book.title)
 
-      if (mode === '覆盖') {
-        persist(incoming)
-        return { mode, added: incoming.length, updated: 0, skipped: 0 }
+    if (mode === '覆盖') {
+      persist(incoming)
+      return { mode, added: incoming.length, updated: 0, skipped: 0 }
+    }
+
+    const existingMap = new Map(allBooks.map((book) => [book.id, book]))
+    let added = 0
+    let updated = 0
+    let skipped = 0
+
+    incoming.forEach((book) => {
+      const duplicate = existingMap.get(book.id) ?? allBooks.find((b) => b.title === book.title && b.author === book.author)
+      if (duplicate && mode === '跳过重复') {
+        skipped += 1
+        return
       }
+      if (duplicate) {
+        existingMap.set(duplicate.id, { ...book, id: duplicate.id, createdAt: duplicate.createdAt })
+        updated += 1
+        return
+      }
+      existingMap.set(book.id, book)
+      added += 1
+    })
 
-      const existingMap = new Map(allBooks.map((book) => [book.id, book]))
-      let added = 0
-      let updated = 0
-      let skipped = 0
-
-      incoming.forEach((book) => {
-        const duplicate =
-          existingMap.get(book.id) ?? allBooks.find((b) => b.title === book.title && b.author === book.author)
-
-        if (duplicate && mode === '跳过重复') {
-          skipped += 1
-          return
-        }
-
-        if (duplicate) {
-          existingMap.set(duplicate.id, { ...book, id: duplicate.id, createdAt: duplicate.createdAt })
-          updated += 1
-          return
-        }
-
-        existingMap.set(book.id, book)
-        added += 1
-      })
-
-      persist(Array.from(existingMap.values()))
-      return { mode, added, updated, skipped }
-    },
-    [allBooks, persist],
-  )
+    persist(Array.from(existingMap.values()))
+    return { mode, added, updated, skipped }
+  }, [allBooks, persist])
 
   return {
     allBooks,
